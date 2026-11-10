@@ -342,6 +342,9 @@ class TorchTrainer(Trainer):
 
         self.model.load_state_dict(self.checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(self.checkpoint["optimizer_state_dict"])
+        # A checkpoint without scheduler state starts the plateau count afresh.
+        if "scheduler_state_dict" in self.checkpoint:
+            self.scheduler.load_state_dict(self.checkpoint["scheduler_state_dict"])
         self.start_epoch = self.checkpoint["epoch"] + 1
         self.last_loss = self.checkpoint["loss"]
         self.best_val_loss = self.checkpoint["best_loss"]
@@ -451,6 +454,7 @@ class TorchTrainer(Trainer):
         model: TorchModel,
         config: Dict,
         optimizer=None,
+        scheduler=None,
         loss: float = None,
         epoch: int = None,
         best_loss: float = None,
@@ -464,6 +468,7 @@ class TorchTrainer(Trainer):
         :param model: The model that is saved to disk
         :param config: Configuration of tomotwin
         :param optimizer: Optimizer
+        :param scheduler: Learning-rate scheduler
         :param loss: Loss
         :param epoch: Current epoch
         :param best_loss: Current best validation loss
@@ -479,6 +484,9 @@ class TorchTrainer(Trainer):
         }
         if optimizer is not None:
             results_dict["optimizer_state_dict"] = optimizer.state_dict()
+
+        if scheduler is not None:
+            results_dict["scheduler_state_dict"] = scheduler.state_dict()
 
         if loss is not None:
             results_dict["loss"] = loss
@@ -515,6 +523,7 @@ class TorchTrainer(Trainer):
             model=model_to_save,
             config=self.network_config,
             optimizer=self.optimizer,
+            scheduler=self.scheduler,
             loss=self.last_loss,
             best_loss=self.best_val_loss,
             best_f1=self.best_val_f1,
