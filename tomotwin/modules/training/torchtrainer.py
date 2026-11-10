@@ -84,7 +84,7 @@ class TorchTrainer(Trainer):
         self.network_config = None
         self.output_path = output_path
         self.last_loss = None
-        self.best_val_loss = np.Infinity
+        self.best_val_loss = np.inf
 
         self.best_val_f1 = 0
         self.current_epoch = None
@@ -112,7 +112,7 @@ class TorchTrainer(Trainer):
             weight_decay=weight_decay,
         )
         self.scheduler = ReduceLROnPlateau(
-            self.optimizer, mode="min", patience=patience, verbose=True
+            self.optimizer, mode="min", patience=patience
         )
         model_params = filter(lambda p: p.requires_grad, self.model.parameters())
         params = sum([np.prod(p.size()) for p in model_params])
@@ -315,10 +315,6 @@ class TorchTrainer(Trainer):
         self.model.eval()
         t = tqdm(test_loader, desc="Validation", leave=False)
 
-        try:
-            self.criterion.set_validation(True)
-        except:
-            print("Cant activate validation mode for loss")
         with torch.no_grad():
             for _, batch in enumerate(t):
 
@@ -326,10 +322,6 @@ class TorchTrainer(Trainer):
                 val_loss.append(valloss.cpu().detach().numpy())
                 desc_t = f"Validation (running loss: {np.mean(val_loss[-20:]):.4f} "
                 t.set_description(desc=desc_t)
-        try:
-            self.criterion.set_validation(False)
-        except:
-            print("Cant deactivate validation mode for loss")
 
         current_val_loss = np.mean(val_loss)
         return current_val_loss
@@ -342,7 +334,7 @@ class TorchTrainer(Trainer):
         """
 
         try:
-            self.checkpoint = torch.load(checkpoint)
+            self.checkpoint = torch.load(checkpoint, weights_only=False)
         except FileNotFoundError:
             print(f"Checkpoint {checkpoint} can't be found. Ignore it.")
             self.checkpoint = None
@@ -410,6 +402,9 @@ class TorchTrainer(Trainer):
 
             print(f"Epoch: {epoch + 1}/{self.epochs} - Training Loss: {train_loss:.4f}")
             self.writer.add_scalar("Loss/train", train_loss, epoch)
+            current_lr = self.optimizer.param_groups[0]["lr"]
+            print(f"Learning rate: {current_lr:.3e}.")
+            self.writer.add_scalar("LearningRate", current_lr, epoch)
 
             # Validation
             if test_loader is not None:
